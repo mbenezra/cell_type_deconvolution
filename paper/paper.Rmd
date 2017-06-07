@@ -1,0 +1,146 @@
+---
+title: "Modelling of Cell Type Proportions in Ageing Frontal Lobe"
+author: "Michael Ben Ezra"
+date: "2017-6-5"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+
+# FANTOM5 DATA
+F5.data <- read.table("/seqdata/sandelin/projects/aging_brain/cell_type_deconvolution/promoter_expression_F5/promoters.expression.tpm.matrix",sep="\t",header=FALSE,row.names=1,as.is=TRUE)
+
+# FANTOM5 DATA INFO
+info <- read.table("/seqdata/sandelin/projects/aging_brain/cell_type_deconvolution/sample_info_w_CNhsID_reordered.txt",sep="\t",header=FALSE,row.names=1,as.is=TRUE)
+info[,3] <- as.character(sapply(info[,3], function(n) gsub(" - ", ", ", n)))
+colnames(F5.data) <- rownames(info)
+
+# TISSUE FANTOM DATA
+tissues <- rownames(info[which(info[,4]=="tissues"),])
+tissues.info <- info[tissues,]
+tissues.info <- cbind(tissues.info,as.character(sapply(tissues.info[,3],function(x) {y <- strsplit(x,",")[[1]]; paste(y[-length(y)],collapse=",")})))
+tissues.F5.data <- F5.data[,tissues]
+
+# FRONTAL LOBE TISSUE FANTOM DATA
+frontal.lobe.tissue <- rownames(tissues.info[which(tissues.info[,6]=="frontal lobe, adult"),])
+frontal.lobe.tissue.info <- tissues.info[frontal.lobe.tissue,]
+frontal.lobe.tissue.F5.data <- F5.data[,frontal.lobe.tissue, drop = FALSE]
+
+# PRIMARY CELLS FANTOM DATA
+primary.cells <- rownames(info[which(info[,4]=="primary cells"),])
+primary.cells.info <- info[primary.cells,]
+primary.cells.info <- cbind(primary.cells.info,as.character(sapply(primary.cells.info[,3],function(x) {y <- strsplit(x,",")[[1]]; paste(y[-length(y)],collapse=",")})))
+primary.cells.F5.data <- F5.data[,primary.cells]
+
+# AVERAGED PRIMARY CELLS FANTOM DATA
+averaged.primary.cells.F5.data <- sapply(unique(primary.cells.info[,6]), function(n) rowMeans(primary.cells.F5.data[,rownames(primary.cells.info)[which(primary.cells.info[,6]==n)],drop=FALSE]))
+colnames(averaged.primary.cells.F5.data) <- unique(primary.cells.info[,6])
+
+# NEURAL PRIMARY CELLS FANTOM DATA
+neural.primary.cells.1 <- rownames(primary.cells.info[which(primary.cells.info[,6]=="Neural stem cells"),])
+neural.primary.cells.2 <- rownames(primary.cells.info[which(primary.cells.info[,6]=="Astrocyte, cerebral cortex"),])
+neural.primary.cells.3 <- rownames(primary.cells.info[which(primary.cells.info[,6]=="Neurons"),])
+neural.primary.cells.4 <- rownames(primary.cells.info[which(primary.cells.info[,6]=="Schwann Cells"),])
+neural.primary.cells.5 <- rownames(primary.cells.info[which(primary.cells.info[,6]=="mature adipocyte"),])
+neural.primary.cells.6 <- rownames(primary.cells.info[which(primary.cells.info[,6]=="Oligodendrocyte, precursors"),])
+neural.primary.cells.7 <- rownames(primary.cells.info[which(primary.cells.info[,6]=="Macrophage, monocyte derived"),])
+neural.primary.cells <- c(neural.primary.cells.1, neural.primary.cells.2, neural.primary.cells.3, neural.primary.cells.4, neural.primary.cells.5, neural.primary.cells.6, neural.primary.cells.7)
+
+neural.primary.cells.info <- primary.cells.info[neural.primary.cells,]
+neural.primary.cells.F5.data <- F5.data[,neural.primary.cells]
+
+# AVERAGED NEURAL PRIMARY CELLS FANTOM DATA
+
+# neural.averaged.primary.cells.F5.data <- averaged.primary.cells.F5.data[,c("Neural stem cells","Astrocyte, cerebral cortex","Neurons","Schwann Cells","mature adipocyte","Oligodendrocyte, precursors","Macrophage, monocyte derived")]
+
+neural.averaged.primary.cells.F5.data <- averaged.primary.cells.F5.data[,c(
+                                                                          # "Neural stem cells",
+                                                                           "Astrocyte, cerebral cortex",
+                                                                           "Neurons",
+                                                                           # "Schwann Cells",
+                                                                           # "mature adipocyte",
+                                                                           "Oligodendrocyte, precursors",
+                                                                           "Macrophage, monocyte derived"
+                                                                           )]
+
+# neural.averaged.primary.cells.F5.data <- averaged.primary.cells.F5.data[,c("Astrocyte, cerebral cortex","Neurons")]
+
+# FRONTAL LOBE DATA
+FL.data <- read.table("/seqdata/sandelin/projects/aging_brain/data_freeze/promoters/TC.freeze.trimmed.exp_matrix.TPM.txt",sep=" ",as.is=TRUE,header=TRUE,row.names=1)
+FL.data <- FL.data[rownames(F5.data),]
+
+# FRONTAL LOBE DATA INFO
+load("/seqdata/sandelin/projects/aging_brain/data_freeze/design.Rdata")
+age <- design$age
+names(age) <- design$Samples
+
+```
+
+# Heatmap
+
+```{r, cache=TRUE}
+
+heatmap(data.matrix(cbind(frontal.lobe.tissue.F5.data, neural.averaged.primary.cells.F5.data)))
+
+```
+
+# Heatmap
+
+```{r, cache=TRUE}
+
+heatmap(neural.averaged.primary.cells.F5.data)
+
+```
+
+# PCA
+
+```{r, cache=TRUE}
+
+heatmap(data.matrix(FL.data))
+
+p <- prcomp(FL.data)
+
+library(ggplot2)
+qplot(PC1, PC2, data=data.frame(p$x), colour=age) + scale_colour_gradient(low="red", high="blue")
+
+```
+
+```{r}
+
+# m<-melt(log(neural.averaged.primary.cells.F5.data))
+# names(m)<-c("gene", "test", "value")
+# ggplot(data=m, aes(gene, test))+geom_tile(aes(fill=value) )+ scale_fill_gradient(low=" red", high="yellow")+theme_bw()
+# 
+# heatmap.2(as.matrix(log(neural.averaged.primary.cells.F5.data)), trace = "none", col = blues9, dendrogram = "row")
+
+```
+
+# CellMix
+
+```{r}
+
+# CELLMIX
+
+library(CellMix)
+
+gse <- ExpressionMix(data.matrix(FL.data))
+sig <- ExpressionMix(data.matrix(neural.averaged.primary.cells.F5.data))
+res <- ged(gse@assayData$exprs, sig@assayData$exprs)
+
+coefs <- coef(res)
+coefs <- coefs[,order(colnames(coefs))]
+
+library(ggplot2)
+library(reshape)
+
+df <- data.frame(rbind(coefs, age))
+df <- data.frame(t(df))
+mdata <- melt(df, id=c("age"))
+
+ggplot(mdata, aes(x=age, y=value, color=variable, linetype=variable)) + stat_smooth(method = "loess")
+
+```
